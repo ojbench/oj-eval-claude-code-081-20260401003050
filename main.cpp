@@ -38,18 +38,21 @@ void add_edge(int from, int to, int cap) {
 }
 
 bool bfs(int s, int t) {
-    fill(level, level + n + 1, -1);
-    queue<int> q;
-    level[s] = 0;
-    q.push(s);
+    static int queue[MAXN];
+    int head = 0, tail = 0;
 
-    while (!q.empty()) {
-        int v = q.front();
-        q.pop();
+    memset(level, -1, (n + 1) * sizeof(int));
+    level[s] = 0;
+    queue[tail++] = s;
+
+    while (head < tail) {
+        int v = queue[head++];
+        if (v == t) return true;  // Early termination
+
         for (auto& e : graph[v]) {
             if (level[e.to] < 0 && e.cap > 0) {
                 level[e.to] = level[v] + 1;
-                q.push(e.to);
+                queue[tail++] = e.to;
             }
         }
     }
@@ -78,7 +81,7 @@ int dfs(int v, int t, int f) {
 int max_flow(int s, int t, int max_possible) {
     int flow = 0;
     while (flow < max_possible && bfs(s, t)) {
-        fill(iter, iter + n + 1, 0);
+        memset(iter, 0, (n + 1) * sizeof(int));  // Only reset what we need
         int f;
         while (flow < max_possible && (f = dfs(s, t, INF)) > 0) {
             flow += f;
