@@ -1,92 +1,81 @@
 #include <iostream>
 #include <vector>
 #include <queue>
-#include <cstring>
 #include <algorithm>
 
 using namespace std;
 
 const int MAXN = 3005;
-const int INF = 1e9;
 
-struct Edge {
-    int to, cap, rev;
-};
-
-vector<Edge> graph[MAXN];
-int level[MAXN];
-int iter[MAXN];
 int n, m;
 int degree[MAXN];
 
-void add_edge(int from, int to, int cap) {
-    graph[from].push_back({to, cap, (int)graph[to].size()});
-    graph[to].push_back({from, 0, (int)graph[from].size() - 1});
-}
+struct Graph {
+    vector<vector<pair<int, int>>> adj;  // adj[u] = list of (v, edge_id)
+    vector<int> cap;  // capacity of each edge
+    int edge_count;
 
-bool bfs(int s, int t) {
-    fill(level, level + n + 1, -1);
-    queue<int> q;
-    level[s] = 0;
-    q.push(s);
+    Graph(int n) : adj(n + 1), cap(0), edge_count(0) {}
 
-    while (!q.empty()) {
-        int v = q.front();
-        q.pop();
-        for (auto& e : graph[v]) {
-            if (level[e.to] < 0 && e.cap > 0) {
-                level[e.to] = level[v] + 1;
-                q.push(e.to);
-            }
-        }
+    void add_edge(int u, int v) {
+        adj[u].push_back({v, edge_count});
+        adj[v].push_back({u, edge_count});
+        cap.push_back(1);
+        edge_count++;
     }
 
-    return level[t] >= 0;
-}
-
-int dfs(int v, int t, int f) {
-    if (v == t) return f;
-
-    for (int& i = iter[v]; i < (int)graph[v].size(); i++) {
-        Edge& e = graph[v][i];
-        if (level[v] < level[e.to] && e.cap > 0) {
-            int d = dfs(e.to, t, min(f, e.cap));
-            if (d > 0) {
-                e.cap -= d;
-                graph[e.to][e.rev].cap += d;
-                return d;
-            }
-        }
+    void reset() {
+        fill(cap.begin(), cap.end(), 1);
     }
+};
 
-    return 0;
-}
-
-int max_flow(int s, int t, int max_possible) {
+int compute_max_flow(Graph& g, int s, int t, int max_possible) {
+    vector<int> parent(n + 1);
+    vector<int> parent_edge(n + 1);
+    vector<bool> visited(n + 1);
     int flow = 0;
-    while (flow < max_possible && bfs(s, t)) {
-        fill(iter, iter + n + 1, 0);
-        int f;
-        while (flow < max_possible && (f = dfs(s, t, INF)) > 0) {
-            flow += f;
+
+    while (flow < max_possible) {
+        fill(visited.begin(), visited.end(), false);
+        fill(parent.begin(), parent.end(), -1);
+
+        queue<int> q;
+        q.push(s);
+        visited[s] = true;
+
+        bool found = false;
+        while (!q.empty() && !found) {
+            int u = q.front();
+            q.pop();
+
+            if (u == t) {
+                found = true;
+                break;
+            }
+
+            for (auto [v, eid] : g.adj[u]) {
+                if (!visited[v] && g.cap[eid] > 0) {
+                    visited[v] = true;
+                    parent[v] = u;
+                    parent_edge[v] = eid;
+                    q.push(v);
+                }
+            }
         }
+
+        if (!found) break;
+
+        // Update flow
+        int curr = t;
+        while (parent[curr] != -1) {
+            int eid = parent_edge[curr];
+            g.cap[eid]--;
+            curr = parent[curr];
+        }
+        flow++;
     }
+
     return flow;
-}
-
-// Save and restore graph state
-vector<Edge> saved_graph[MAXN];
-
-void save_graph() {
-    for (int i = 1; i <= n; i++) {
-        saved_graph[i] = graph[i];
-    }
-}
-
-void restore_graph() {
-    for (int i = 1; i <= n; i++) {
-        graph[i] = saved_graph[i];
-    }
 }
 
 int main() {
@@ -95,27 +84,24 @@ int main() {
 
     cin >> n >> m;
 
+    Graph g(n);
+
     for (int i = 0; i < m; i++) {
         int a, b;
         cin >> a >> b;
-        add_edge(a, b, 1);
-        add_edge(b, a, 1);
+        g.add_edge(a, b);
         degree[a]++;
         degree[b]++;
     }
 
-    save_graph();
-
     long long total = 0;
     for (int a = 1; a <= n; a++) {
         for (int b = a + 1; b <= n; b++) {
-            // Skip if either node is isolated
             if (degree[a] == 0 || degree[b] == 0) continue;
 
-            restore_graph();
-            // Max flow is limited by min of degrees
+            g.reset();
             int max_possible = min(degree[a], degree[b]);
-            int flow = max_flow(a, b, max_possible);
+            int flow = compute_max_flow(g, a, b, max_possible);
             total += flow;
         }
     }
