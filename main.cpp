@@ -18,6 +18,19 @@ int level[MAXN];
 int iter[MAXN];
 int n, m;
 int degree[MAXN];
+int component[MAXN];
+
+// Union-Find for connected components
+int parent_uf[MAXN];
+int find_uf(int x) {
+    if (parent_uf[x] != x) parent_uf[x] = find_uf(parent_uf[x]);
+    return parent_uf[x];
+}
+void union_uf(int x, int y) {
+    x = find_uf(x);
+    y = find_uf(y);
+    if (x != y) parent_uf[x] = y;
+}
 
 void add_edge(int from, int to, int cap) {
     graph[from].push_back({to, cap, (int)graph[to].size()});
@@ -95,13 +108,23 @@ int main() {
 
     cin >> n >> m;
 
+    // Initialize union-find
+    for (int i = 1; i <= n; i++) parent_uf[i] = i;
+
+    vector<pair<int, int>> edges;
     for (int i = 0; i < m; i++) {
         int a, b;
         cin >> a >> b;
-        add_edge(a, b, 1);
-        add_edge(b, a, 1);
+        edges.push_back({a, b});
+        union_uf(a, b);
         degree[a]++;
         degree[b]++;
+    }
+
+    // Build graph
+    for (auto [a, b] : edges) {
+        add_edge(a, b, 1);
+        add_edge(b, a, 1);
     }
 
     save_graph();
@@ -111,6 +134,9 @@ int main() {
         for (int b = a + 1; b <= n; b++) {
             // Skip if either node is isolated
             if (degree[a] == 0 || degree[b] == 0) continue;
+
+            // Skip if nodes are in different components
+            if (find_uf(a) != find_uf(b)) continue;
 
             restore_graph();
             // Max flow is limited by min of degrees
