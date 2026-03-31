@@ -1,0 +1,118 @@
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <cstring>
+#include <algorithm>
+
+using namespace std;
+
+const int MAXN = 3005;
+const int INF = 1e9;
+
+struct Edge {
+    int to, cap, rev;
+};
+
+vector<Edge> graph[MAXN];
+int level[MAXN];
+int iter[MAXN];
+int n, m;
+
+void add_edge(int from, int to, int cap) {
+    graph[from].push_back({to, cap, (int)graph[to].size()});
+    graph[to].push_back({from, 0, (int)graph[from].size() - 1});
+}
+
+bool bfs(int s, int t) {
+    memset(level, -1, sizeof(level));
+    queue<int> q;
+    level[s] = 0;
+    q.push(s);
+
+    while (!q.empty()) {
+        int v = q.front();
+        q.pop();
+        for (auto& e : graph[v]) {
+            if (level[e.to] < 0 && e.cap > 0) {
+                level[e.to] = level[v] + 1;
+                q.push(e.to);
+            }
+        }
+    }
+
+    return level[t] >= 0;
+}
+
+int dfs(int v, int t, int f) {
+    if (v == t) return f;
+
+    for (int& i = iter[v]; i < graph[v].size(); i++) {
+        Edge& e = graph[v][i];
+        if (level[v] < level[e.to] && e.cap > 0) {
+            int d = dfs(e.to, t, min(f, e.cap));
+            if (d > 0) {
+                e.cap -= d;
+                graph[e.to][e.rev].cap += d;
+                return d;
+            }
+        }
+    }
+
+    return 0;
+}
+
+int max_flow(int s, int t) {
+    int flow = 0;
+    while (bfs(s, t)) {
+        memset(iter, 0, sizeof(iter));
+        int f;
+        while ((f = dfs(s, t, INF)) > 0) {
+            flow += f;
+        }
+    }
+    return flow;
+}
+
+// Save and restore graph state
+vector<Edge> saved_graph[MAXN];
+
+void save_graph() {
+    for (int i = 1; i <= n; i++) {
+        saved_graph[i] = graph[i];
+    }
+}
+
+void restore_graph() {
+    for (int i = 1; i <= n; i++) {
+        graph[i] = saved_graph[i];
+    }
+}
+
+int main() {
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
+
+    cin >> n >> m;
+
+    for (int i = 0; i < m; i++) {
+        int a, b;
+        cin >> a >> b;
+        add_edge(a, b, 1);
+        add_edge(b, a, 1);
+    }
+
+    save_graph();
+
+    long long total = 0;
+    for (int a = 1; a <= n; a++) {
+        for (int b = a + 1; b <= n; b++) {
+            restore_graph();
+            int flow = max_flow(a, b);
+            total += flow;
+        }
+    }
+
+    cout << total << endl;
+
+    return 0;
+}
