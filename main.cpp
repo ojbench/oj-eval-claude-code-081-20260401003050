@@ -17,6 +17,7 @@ vector<Edge> graph[MAXN];
 int level[MAXN];
 int iter[MAXN];
 int n, m;
+int degree[MAXN];
 
 void add_edge(int from, int to, int cap) {
     graph[from].push_back({to, cap, (int)graph[to].size()});
@@ -24,7 +25,7 @@ void add_edge(int from, int to, int cap) {
 }
 
 bool bfs(int s, int t) {
-    memset(level, -1, sizeof(level));
+    fill(level, level + n + 1, -1);
     queue<int> q;
     level[s] = 0;
     q.push(s);
@@ -46,7 +47,7 @@ bool bfs(int s, int t) {
 int dfs(int v, int t, int f) {
     if (v == t) return f;
 
-    for (int& i = iter[v]; i < graph[v].size(); i++) {
+    for (int& i = iter[v]; i < (int)graph[v].size(); i++) {
         Edge& e = graph[v][i];
         if (level[v] < level[e.to] && e.cap > 0) {
             int d = dfs(e.to, t, min(f, e.cap));
@@ -61,12 +62,12 @@ int dfs(int v, int t, int f) {
     return 0;
 }
 
-int max_flow(int s, int t) {
+int max_flow(int s, int t, int max_possible) {
     int flow = 0;
-    while (bfs(s, t)) {
-        memset(iter, 0, sizeof(iter));
+    while (flow < max_possible && bfs(s, t)) {
+        fill(iter, iter + n + 1, 0);
         int f;
-        while ((f = dfs(s, t, INF)) > 0) {
+        while (flow < max_possible && (f = dfs(s, t, INF)) > 0) {
             flow += f;
         }
     }
@@ -99,6 +100,8 @@ int main() {
         cin >> a >> b;
         add_edge(a, b, 1);
         add_edge(b, a, 1);
+        degree[a]++;
+        degree[b]++;
     }
 
     save_graph();
@@ -106,8 +109,13 @@ int main() {
     long long total = 0;
     for (int a = 1; a <= n; a++) {
         for (int b = a + 1; b <= n; b++) {
+            // Skip if either node is isolated
+            if (degree[a] == 0 || degree[b] == 0) continue;
+
             restore_graph();
-            int flow = max_flow(a, b);
+            // Max flow is limited by min of degrees
+            int max_possible = min(degree[a], degree[b]);
+            int flow = max_flow(a, b, max_possible);
             total += flow;
         }
     }
